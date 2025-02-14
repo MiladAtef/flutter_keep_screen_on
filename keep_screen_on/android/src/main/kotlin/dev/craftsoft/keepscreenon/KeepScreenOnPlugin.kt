@@ -3,7 +3,6 @@ package dev.craftsoft.keepscreenon
 import android.app.Activity
 import android.util.Log
 import android.view.WindowManager
-
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
@@ -12,33 +11,22 @@ import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
 
-/** KeepScreenOnPlugin */
-public class KeepScreenOnPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
-  /// The MethodChannel that will the communication between Flutter and native Android
-  ///
-  /// This local reference serves to register the plugin with the Flutter Engine and unregister it
-  /// when the Flutter Engine is detached from the Activity
-  private lateinit var channel : MethodChannel
-
+class KeepScreenOnPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
+  private lateinit var channel: MethodChannel
   private var activity: Activity? = null
 
   override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
     channel = MethodChannel(flutterPluginBinding.binaryMessenger, CHANNEL_NAME)
-    channel.setMethodCallHandler(this);
+    channel.setMethodCallHandler(this)
   }
 
   override fun onMethodCall(call: MethodCall, result: Result) {
-
     when (call.method) {
-      "isOn"   -> onMethodCallIsOn(call, result)
+      "isOn" -> onMethodCallIsOn(result)
       "turnOn" -> onMethodCallTurnOn(call, result)
-
-      "isAllowLockWhileScreenOn" -> onMethodCallIsAllowLockWhileScreenOn(call, result)
+      "isAllowLockWhileScreenOn" -> onMethodCallIsAllowLockWhileScreenOn(result)
       "addAllowLockWhileScreenOn" -> onMethodCallAddAllowLockWhileScreenOn(call, result)
-
-      else     -> {
-        result.notImplemented();
-      }
+      else -> result.notImplemented()
     }
   }
 
@@ -46,9 +34,6 @@ public class KeepScreenOnPlugin: FlutterPlugin, MethodCallHandler, ActivityAware
     channel.setMethodCallHandler(null)
   }
 
-  //
-  // Implement ActivityAware
-  //
   override fun onAttachedToActivity(binding: ActivityPluginBinding) {
     activity = binding.activity
   }
@@ -65,99 +50,53 @@ public class KeepScreenOnPlugin: FlutterPlugin, MethodCallHandler, ActivityAware
     activity = null
   }
 
-  //
-  // Implement a private method called from onMethodCall
-  //
-  private fun onMethodCallIsOn(@Suppress("UNUSED_PARAMETER") call: MethodCall, result: Result) {
-    val window = activity?.window
-
-    if (window == null) {
-      result.error("not-found-activity", "Not found 'activity'.", null)
-      return
-    }
-
-    val hasKeepScreenOn = (window.attributes.flags and WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) != 0;
-    result.success(hasKeepScreenOn);
+  private fun onMethodCallIsOn(result: Result) {
+    val window = activity?.window ?: return result.error("not-found-activity", "Activity not found.", null)
+    val hasKeepScreenOn = (window.attributes.flags and WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) != 0
+    result.success(hasKeepScreenOn)
   }
 
   private fun onMethodCallTurnOn(call: MethodCall, result: Result) {
-    val window = activity?.window
-
-    if (window == null) {
-      result.error("not-found-activity", "Not found 'activity'.", null)
-      return
-    }
-
-    val on = call.argument<Boolean>("on");
-    val withAllowLockWhileScreenOn = call.argument<Boolean>("withAllowLockWhileScreenOn")
+    val window = activity?.window ?: return result.error("not-found-activity", "Activity not found.", null)
+    val on = call.argument<Boolean>("on") ?: false
+    val withAllowLockWhileScreenOn = call.argument<Boolean>("withAllowLockWhileScreenOn") ?: false
 
     val flag = WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
-            if(withAllowLockWhileScreenOn == true)
-              WindowManager.LayoutParams.FLAG_ALLOW_LOCK_WHILE_SCREEN_ON
-            else
-              0
+            if (withAllowLockWhileScreenOn) WindowManager.LayoutParams.FLAG_ALLOW_LOCK_WHILE_SCREEN_ON else 0
 
     Log.d(TAG, "flag=$flag")
 
-    if (on == true) {
+    if (on) {
       window.addFlags(flag)
     } else {
-      window.clearFlags(flag);
+      window.clearFlags(flag)
     }
 
-    result.success(true);
+    result.success(true)
   }
 
-  private fun onMethodCallIsAllowLockWhileScreenOn(call: MethodCall, result: Result) {
-    val window = activity?.window
-
-    if (window == null) {
-      result.error("not-found-activity", "Not found 'activity'.", null)
-      return
-    }
-
-    val hasAllowLockWhileScreenOn = (window.attributes.flags and WindowManager.LayoutParams.FLAG_ALLOW_LOCK_WHILE_SCREEN_ON) != 0;
-    result.success(hasAllowLockWhileScreenOn);
+  private fun onMethodCallIsAllowLockWhileScreenOn(result: Result) {
+    val window = activity?.window ?: return result.error("not-found-activity", "Activity not found.", null)
+    val hasAllowLockWhileScreenOn = (window.attributes.flags and WindowManager.LayoutParams.FLAG_ALLOW_LOCK_WHILE_SCREEN_ON) != 0
+    result.success(hasAllowLockWhileScreenOn)
   }
 
   private fun onMethodCallAddAllowLockWhileScreenOn(call: MethodCall, result: Result) {
-    val window = activity?.window
-
-    if (window == null) {
-      result.error("not-found-activity", "Not found 'activity'.", null)
-      return
-    }
-
-    val on = call.argument<Boolean>("on");
+    val window = activity?.window ?: return result.error("not-found-activity", "Activity not found.", null)
+    val on = call.argument<Boolean>("on") ?: false
     val flag = WindowManager.LayoutParams.FLAG_ALLOW_LOCK_WHILE_SCREEN_ON
 
-    if (on == true) {
+    if (on) {
       window.addFlags(flag)
     } else {
-      window.clearFlags(flag);
+      window.clearFlags(flag)
     }
 
-    result.success(true);
+    result.success(true)
   }
 
-  // This static function is optional and equivalent to onAttachedToEngine. It supports the old
-  // pre-Flutter-1.12 Android projects. You are encouraged to continue supporting
-  // plugin registration via this function while apps migrate to use the new Android APIs
-  // post-flutter-1.12 via https://flutter.dev/go/android-project-migration.
-  //
-  // It is encouraged to share logic between onAttachedToEngine and registerWith to keep
-  // them functionally equivalent. Only one of onAttachedToEngine or registerWith will be called
-  // depending on the user's project. onAttachedToEngine or registerWith must both be defined
-  // in the same class.
   companion object {
-    const val TAG = "KeepScreenOnPlugin";
-    const val CHANNEL_NAME = "dev.craftsoft/keep_screen_on";
-
-    @Suppress("DEPRECATION")
-    @JvmStatic
-    fun registerWith(registrar: io.flutter.plugin.common.PluginRegistry.Registrar) {
-      val channel = MethodChannel(registrar.messenger(), CHANNEL_NAME)
-      channel.setMethodCallHandler(KeepScreenOnPlugin())
-    }
+    const val TAG = "KeepScreenOnPlugin"
+    const val CHANNEL_NAME = "dev.craftsoft/keep_screen_on"
   }
 }
